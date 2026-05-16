@@ -6,23 +6,17 @@ from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 
-from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_chroma import Chroma
 
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 from typing_extensions import List, TypedDict
 
-from typing import TypedDict, List
-from langchain_core.documents import Document
 from langchain_core.prompts import MessagesPlaceholder
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.chains.combine_documents import (
     create_stuff_documents_chain,
 )
@@ -30,9 +24,7 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.prompts import PromptTemplate
 from langchain_community.chat_models import ChatOllama
 from langchain_core.output_parsers import JsonOutputParser
-from pydantic import BaseModel, Field
 import operator
-from langgraph.checkpoint.memory import MemorySaver
 import uuid
 
 import logging
@@ -544,7 +536,8 @@ memory = MemorySaver()
 app = workflow.compile(checkpointer=memory)
 
 thread_id = str(uuid.uuid4())
-
+# Global in-memory store for development
+chat_db: Dict[str, List[dict]] = {}
 
 def chat_with_agent(question: str, thread_id: str):
     config = {"configurable": {"thread_id": thread_id}}
@@ -559,21 +552,12 @@ def chat_with_agent(question: str, thread_id: str):
     }
     
     result = app.invoke(input_state, config)
-
-    # For development - simple in-memory store
-    if 'chat_db' not in globals():
-        global chat_db
-        chat_db = {}
     
     if thread_id not in chat_db:
         chat_db[thread_id] = []
     
     chat_db[thread_id].extend(result.get("chat_history", []))
-    
-    # Save clean history to your database for the frontend
-    # save_chat_to_db(
-    #     thread_id=thread_id,
-    #     messages=result.get("chat_history", [])
-    # )
-    
+        
     return result["generation"]
+
+
